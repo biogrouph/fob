@@ -31,7 +31,7 @@ def blast(db, query, query_folder="./queries/", blast_path="", psiblast=False):
         # Note that it is is easier to parse the output if it is in tabular format.
         # For that use can use the option -outfmt '6 qacc sacc evalue'. (see https://www.ncbi.nlm.nih.gov/books/NBK279682/ )
         # To avoid the warning about composition based statistics, disable them with -comp_based_stats 0
-
+        cmd = "psiblast -query " + query_folder.strip() + query + ".fasta -db " + db + " -num_iterations 3 -comp_based_stats 0 -outfmt '6 qacc sacc evalue'" 
 
         ##########################
         ###  END CODING HERE  ####
@@ -43,7 +43,7 @@ def blast(db, query, query_folder="./queries/", blast_path="", psiblast=False):
         ##########################
         # Define the variable 'cmd' as a string with the command for PSI-BLASTing 'query' against
         # the specified database 'db'.
-
+        cmd = "blastp -query " + query_folder.strip() + query + ".fasta -db " + db + " -outfmt '6 qacc sacc evalue'"
 
         ##########################
         ###  END CODING HERE  ####
@@ -74,7 +74,8 @@ def parse_blast_result(blast_result, blast_dict):
                 ### START CODING HERE ####
                 ##########################
                 # Parse the e-score corresponding to this line's (query, subject) pair and store it in blast_dict.
-
+                blast_key = (query, subject)
+                blast_dict[blast_key] = float(splitted_line[2])
 
                 ##########################
                 ###  END CODING HERE  ####
@@ -129,13 +130,13 @@ def plot_evalue_distribution(blast_dict, png_filename="DistributionEValue.png", 
     ##########################
     # Calculate the number of e-values lower than threshold.
     # You will need to figure out how to pass evalue to this function.
-    pass
+    print("Number of e-values lower than treshold ({}): {} e-values.".format(evalue, sum(map(lambda y: y < evalue, map(lambda x: sorted_e_val[x], nonzero_indices)))))
     ##########################
     ###  END CODING HERE  ####
     ##########################
 
 
-def main(uniprot_id_list, query_folder, db, psiblast, output_filename, output_png=""):
+def main(uniprot_id_list, query_folder, db, psiblast, output_filename, evalue, output_png=""):
     # The blast_dict dictionary will be used to store protein pair and the corresponding e-value.
     # Keys for blast_dict are the combination of query and subject/hit, e.g.:
     # key             = (query, subject)
@@ -153,7 +154,9 @@ def main(uniprot_id_list, query_folder, db, psiblast, output_filename, output_pn
         # Run (PSI-)BLAST for all query proteins.
         # Store all the uniprot IDs in the uniprot_ids.
         # Parse and store the blast result in the blast_dict.
-
+        uniprot_ids.append(query)
+        blast_result = blast(db, query, query_folder, output_filename, psiblast)
+        parse_blast_result(blast_result, blast_dict)
 
         ##########################
         ###  END CODING HERE  ####
@@ -161,7 +164,7 @@ def main(uniprot_id_list, query_folder, db, psiblast, output_filename, output_pn
 
     uniprot_ids_file.close()
     write_output(uniprot_ids, output_filename, blast_dict)
-    plot_evalue_distribution(blast_dict, output_png)
+    plot_evalue_distribution(blast_dict, output_png, evalue)
 
 
 if __name__ == "__main__":
@@ -172,7 +175,7 @@ if __name__ == "__main__":
     parser.add_argument("-o", "--output_file", help="output file", required=True)
     parser.add_argument("-opng", "--output_png", help="output png file", required=False)
     parser.add_argument("-psi", "--psiblast", dest="psiblast", action="store_true", help="If flagged, run PSI-BLAST instead of BLASTP")
-
+    parser.add_argument("-eval", "--evalue", help="the evalue treshold", required=False)
     args = parser.parse_args()
 
     # Assign the parsed arguments to the corresponding variables.
@@ -182,5 +185,6 @@ if __name__ == "__main__":
     psiblast = args.psiblast # True or False
     output_filename = args.output_file
     output_png = args.output_png
+    evalue = float(args.evalue)
 
-    main(uniprot_id_list, query_folder, db, psiblast, output_filename, output_png)
+    main(uniprot_id_list, query_folder, db, psiblast, output_filename, evalue, output_png)
